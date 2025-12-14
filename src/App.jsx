@@ -93,6 +93,7 @@ function App() {
       {colname:'label',label:'label'},
       {colname:'oasis_fields.type',label:'type'},
       {colname:'oasis_fields.is_array',label:'is_array'},
+      {colname:'oasis_fields.sourcing',label:'sourcing'},
       {colname:'oasis_fields.short_description',label:'short_description'},
     ];
     const csvContent = [schema.map( s => s.label ?? s.colname).join(';')];
