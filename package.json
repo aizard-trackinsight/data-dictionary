@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild":"./prebuild.sh",
     "build": "vite build",
+    "deploy":"./deploy.sh",
     "lint": "eslint .",
     "preview": "vite preview"
   },

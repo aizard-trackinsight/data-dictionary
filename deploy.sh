@@ -1,1 +1,1 @@
-npm run build && aws s3 cp dist/index.html s3://prod-oasis-data/fields/index.html
+aws s3 cp dist/index.html s3://prod-oasis-data/fields/index.html

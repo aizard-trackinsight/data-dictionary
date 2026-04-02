@@ -1,12 +1,13 @@
 import { useState,useEffect  } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+
 import './App.css'
-import _ from 'lodash'
-import apis from '../data/fields.json'
-import classification_controls from '../data/classification_controls_dedup.json'
+import _, { sortedIndex } from 'lodash'
+import apis from '../data/api_fields.json'
+import field_source from '../data/fields.json'
+// import classification_controls from '../data/classification_controls_dedup.json'
 import fields_summary from '../data/fields_summary.json'
-import { createPortal } from 'react-dom'
+import fields_values from '../data/fields_values.json'
+
 
 
 function download ({content, filename="data.csv", type="text/csv;charset=utf-8;"}) {
@@ -23,16 +24,16 @@ function download ({content, filename="data.csv", type="text/csv;charset=utf-8;"
 function Badge ({bg='bg-blue-300/20', border='border-blue-400', children}) {
     return <div className={` inline-block  text-xs px-1 rounded ${bg} border ${border}`}>{children}</div>
 }
-classification_controls.map(cc => {
-  const v = {
-    'excluded':<Badge bg='bg-gray-100' border="border-gray-300">Out of scope</Badge>,
-    'optional':<Badge bg='bg-yellow-100' border="border-yellow-300">Optional</Badge>,
-    'required':<Badge bg='bg-green-100' border="border-green-300">Available</Badge>,
-  }[cc.control];
-  cc.control_v = v;
+// classification_controls.map(cc => {
+//   const v = {
+//     'excluded':<Badge bg='bg-gray-100' border="border-gray-300">Out of scope</Badge>,
+//     'optional':<Badge bg='bg-yellow-100' border="border-yellow-300">Optional</Badge>,
+//     'required':<Badge bg='bg-green-100' border="border-green-300">Available</Badge>,
+//   }[cc.control];
+//   cc.control_v = v;
  
-})
-console.log(classification_controls)
+// })
+// console.log(classification_controls)
 
 
 function App() {
@@ -51,20 +52,39 @@ function App() {
 
   const api = apis.find(a => a.code=='trackinsight-standard-api');
   // console.log(api.api_responses)
-  const fields = [];
-  api.api_responses.map(api_response => {
-    // console.log(api_response.api_response_fields);
-    api_response.api_response_fields.map(field => {
-      if (field.oasis_fields.domain == null) field.oasis_fields.domain = "Base";
-      fields.push(field);
-    });
-  });
+  // const fields = [];
+  // api.api_responses.map(api_response => {
+  //   // console.log(api_response.api_response_fields);
+  //   api_response.api_response_fields.map(field => {
+  //     if (field.oasis_fields.domain == null) field.oasis_fields.domain = "Base";
+  //     fields.push(field);
+  //     console.log(field)
+  //   });
+  // });
+
+  let fields = _.sortBy(field_source.map(fs => {
+    return {
+      code:fs.code,
+      label:fs.label,
+      oasis_fields:fs
+    }
+  }), x => x.label)
+
+  const domains = ["Fund Characteristics","Benchmark Information","Listings","Classification","Period Metrics","Timeseries"];
+
+
+  let sortedFields = [];
+  domains.map(d => {
+    sortedFields = sortedFields.concat(fields.filter(f => f.oasis_fields.domain == d));
+  })
+  fields = sortedFields;
+  
 
   fields.map(field => {
-    if (field.code.startsWith('class_')) {
-      field.availabilityTable = _.orderBy(classification_controls
-        .filter(cc => cc.column == field.code),x => [x.summary_asset_class,x.strategy].join(';'))
-    }
+    // if (field.code.startsWith('class_')) {
+    //   field.availabilityTable = _.orderBy(classification_controls
+    //     .filter(cc => cc.column == field.code),x => [x.summary_asset_class,x.strategy].join(';'))
+    // }
     const summary = fields_summary.find(f => f.key == field.code);
     // if (field.code.startsWith('class_')) {
     //   console.log(field, summary)
@@ -72,14 +92,18 @@ function App() {
     if (summary) {
       field.values = _.orderBy(summary.values, row => -row.count)
       field.values.map(row => {
-        if (field.oasis_fields.oasis_field_values) {
-          const field_v = field.oasis_fields.oasis_field_values.find(v => v.value == row.value)
-          row.description = field_v?.description
-        }
+        let field_value = fields_values.find(v => v.oasis_field_id == field.oasis_fields.id && v.value == row.value)
+        row.description =  field_value?.description
+        
+        // if (field.oasis_fields.oasis_field_values) {
+        //   const field_v = field.oasis_fields.oasis_field_values.find(v => v.value == row.value)
+        //   row.description = field_v?.description
+        // }
       })
     
       field.sample = _.orderBy(summary.sample, row => -row.count)
     }
+    
   })
 
   const fieldGroups = _.uniqBy(fields.map(f => f.oasis_fields.domain ));
@@ -93,7 +117,7 @@ function App() {
       {colname:'label',label:'label'},
       {colname:'oasis_fields.type',label:'type'},
       {colname:'oasis_fields.is_array',label:'is_array'},
-      {colname:'oasis_fields.sourcing',label:'sourcing'},
+      // {colname:'oasis_fields.sourcing',label:'sourcing'},
       {colname:'oasis_fields.short_description',label:'short_description'},
     ];
     const csvContent = [schema.map( s => s.label ?? s.colname).join(';')];
@@ -191,7 +215,7 @@ function App() {
 
 function Details ({field,setModalContent, setModalOpen}) {
 
-  
+  console.log(field)
   const availability = {
     rows:field.availabilityTable,
     schema:[
@@ -302,17 +326,30 @@ function Details ({field,setModalContent, setModalOpen}) {
       </div>
       
       <div className="flex gap-6 mb-6 border-t border-gray-200 pt-6">
-        <div className="min-w-32">
+        {/* <div className="min-w-32">
           <div className="font-bold text-xs">Sourcing</div>
           <div className="">{_.get(field,'oasis_fields.sourcing')}</div>
-        </div>
+        </div> */}
         <div className="min-w-32">
           <div className="font-bold text-xs">Short Description</div>
           <div className="">{_.get(field,'oasis_fields.short_description')}</div>
         </div>
       
       </div>
-
+      { field.oasis_fields.rules  ? 
+        <div className="flex gap-6 mb-6 border-t border-gray-200 pt-6">
+          {/* <div className="min-w-32">
+            <div className="font-bold text-xs">Sourcing</div>
+            <div className="">{_.get(field,'oasis_fields.sourcing')}</div>
+          </div> */}
+          <div className="min-w-32">
+            <div className="font-bold text-xs">Rules</div>
+            <div className="">
+              <DocRenderer data={_.get(field,'oasis_fields.rules')}></DocRenderer>
+              </div>
+          </div>
+        
+        </div> :""}
       <div className="w-full">
         <div className="w-full flex border-b  border-gray-200">
           {tabs.map((tab, i) => (
